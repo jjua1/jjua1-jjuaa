@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Google Sheets Data</title>
+  <style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    th, td {
+      border: 1px solid black;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+  </style>
+</head>
+<body>
+  <h1>Google Sheets Data</h1>
+  <h2>통계</h2>
+  <table id="statsTable"></table>
+  <h2>챔피언통계</h2>
+  <table id="championTable"></table>
+
+  <script>
+    function createTable(data, tableId) {
+      var table = document.getElementById(tableId);
+      table.innerHTML = "";  // 기존 테이블 내용 지우기
+      var thead = table.createTHead();
+      var tbody = table.createTBody();
+      var merges = data.merges;
+      var formats = data.formats;
+
+      // 테이블 헤더 생성
+      var headerRow = thead.insertRow();
+      data.data[0].forEach(function(header, index) {
+        var th = document.createElement("th");
+        var mergeInfo = getMergeInfo(1, index + 1, merges);
+        if (mergeInfo) {
+          th.rowSpan = mergeInfo.rowSpan;
+          th.colSpan = mergeInfo.colSpan;
+        }
+        th.appendChild(document.createTextNode(header));
+        headerRow.appendChild(th);
+      });
+
+      // 테이블 데이터 생성
+      for (var i = 1; i < data.data.length; i++) {
+        var row = tbody.insertRow();
+        for (var j = 0; j < data.data[i].length; j++) {
+          if (!isMergedCell(i + 1, j + 1, merges)) {
+            var cell = row.insertCell();
+            var mergeInfo = getMergeInfo(i + 1, j + 1, merges);
+            if (mergeInfo) {
+              cell.rowSpan = mergeInfo.rowSpan;
+              cell.colSpan = mergeInfo.colSpan;
+            }
+            // % 형식 적용
+            if (formats[i][j] === "0.00%" && i >= 2) {
+              cell.appendChild(document.createTextNode((data.data[i][j] * 100).toFixed(2) + "%"));
+            } else {
+              cell.appendChild(document.createTextNode(data.data[i][j]));
+            }
+          }
+        }
+      }
+    }
+
+    function isMergedCell(row, col, merges) {
+      for (var k = 0; k < merges.length; k++) {
+        var merge = merges[k];
+        if (row >= merge.row && row < merge.row + merge.numRows &&
+            col >= merge.column && col < merge.column + merge.numColumns) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function getMergeInfo(row, col, merges) {
+      for (var k = 0; k < merges.length; k++) {
+        var merge = merges[k];
+        if (row == merge.row && col == merge.column) {
+          return { rowSpan: merge.numRows, colSpan: merge.numColumns };
+        }
+      }
+      return null;
+    }
+
+    function loadData() {
+      // 통계 데이터 불러오기
+      fetch('stats.json')
+        .then(response => response.json())
+        .then(data => createTable(data, 'statsTable'))
+        .catch(error => console.error('Error loading stats data:', error));
+
+      // 챔피언통계 데이터 불러오기
+      fetch('champion.json')
+        .then(response => response.json())
+        .then(data => createTable(data, 'championTable'))
+        .catch(error => console.error('Error loading champion data:', error));
+    }
+
+    window.onload = loadData;  // 페이지 로드 시 데이터 불러오기
+  </script>
+</body>
+</html>
